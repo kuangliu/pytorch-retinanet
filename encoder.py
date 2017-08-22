@@ -87,8 +87,8 @@ class DataEncoder:
 
 
 def test():
-    in_size = 512
-    c3_size = 64
+    in_size = 600
+    c3_size = 75
     grid_size = in_size/c3_size
     cx = grid_size/2.
     cy = grid_size/2.
@@ -118,4 +118,6 @@ def test2():
     boxes /= torch.Tensor([w,h,w,h]).expand_as(boxes)
 
     encoder = DataEncoder()
-    loc_targets, cls_targets = encoder.encode(boxes, labels, input_size=512)
+    loc_targets, cls_targets = encoder.encode(boxes, labels, input_size=600)
+
+# test()

@@ -67,6 +67,29 @@ class RetinaFPN(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
+    def _add(self, x, y):
+        '''Add two feature maps.
+
+        Args:
+          x: (Variable) upsampled feature map.
+          y: (Variable) lateral feature map.
+
+        Returns:
+          (Variable) added feature map.
+
+        Upsampled feature map size is always >= lateral feature map size.
+        The reason why the two feature map sizes may not equal is because when the
+        input size is odd, the upsampled feature map size is always 1 pixel
+        bigger than the original input size.
+
+        e.g.
+        original input size: [N,_,15,15] ->
+        conv2d feature map size: [N,_,8,8] ->
+        upsamped feature map size: [N,_,16,16]
+        '''
+        _,_,H,W = y.size()
+        return x[:,:,:H,:W] + y
+
     def forward(self, x):
         # Bottom-up
         c1 = F.relu(self.bn1(self.conv1(x)))
@@ -79,22 +102,22 @@ class RetinaFPN(nn.Module):
         p7 = self.conv7(F.relu(p6))
         # Top-down
         p5 = self.toplayer1(c5)
-        p4 = F.upsample(p5, scale_factor=2) + self.latlayer1(c4)
+        p4 = self._add(F.upsample(p5, scale_factor=2), self.latlayer1(c4))
         p4 = self.toplayer2(p4)
-        p3 = F.upsample(p4, scale_factor=2) + self.latlayer2(c3)
+        p3 = self._add(F.upsample(p4, scale_factor=2), self.latlayer2(c3))
         p3 = self.toplayer3(p3)
         return p3, p4, p5, p6, p7
 
 
 def RetinaFPN101():
-    # return FPN(Bottleneck, [2,4,23,3])
+    # return RetinaFPN(Bottleneck, [2,4,23,3])
     return RetinaFPN(Bottleneck, [2,2,2,2])
 
 
 def test():
     net = RetinaFPN101()
-    fms = net(Variable(torch.randn(1,3,512,512)))
+    fms = net(Variable(torch.randn(1,3,600,150)))
     for fm in fms:
         print(fm.size())
 
-# test()
+test()
