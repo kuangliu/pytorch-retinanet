@@ -82,18 +82,40 @@ def meshgrid(x, swap_dims=False):
     yy = a.repeat(x,1).view(-1,1)
     return torch.cat([yy,xx],1) if swap_dims else torch.cat([xx,yy],1)
 
-def box_iou(box1, box2):
+def change_box_order(boxes, order):
+    '''Change box order between (xmin,ymin,xmax,ymax) and (xcenter,ycenter,width,height).
+
+    Args:
+      boxes: (tensor) bounding boxes, sized [N,4].
+      order: (str) either 'xyxy2xywh' or 'xywh2xyxy'.
+
+    Returns:
+      (tensor) converted boundign boxes, sized [N,4].
+    '''
+    assert order in ['xyxy2xywh','xywh2xyxy']
+    a = boxes[:,:2]
+    b = boxes[:,2:]
+    if order == 'xyxy2xywh':
+        return torch.cat([(a+b)/2,b-a], 1)
+    return torch.cat([a-b/2,a+b/2], 1)
+
+def box_iou(box1, box2, order='xyxy'):
     '''Compute the intersection over union of two set of boxes.
 
-    box1, box2 are as: [xmin, ymin, xmax, ymax].
+    The default box order is (xmin, ymin, xmax, ymax).
 
     Args:
       box1: (tensor) bounding boxes, sized [N,4].
       box2: (tensor) bounding boxes, sized [M,4].
+      order: (str) box order, either 'xyxy' or 'xywh'.
 
     Return:
       (tensor) iou, sized [N,M].
     '''
+    if order == 'xywh':
+        box1 = change_box_order(box1, 'xywh2xyxy')
+        box2 = change_box_order(box2, 'xywh2xyxy')
+
     N = box1.size(0)
     M = box2.size(0)
 
@@ -198,11 +220,11 @@ def msr_init(net):
         elif type(layer) == nn.Linear:
             layer.bias.data.zero_()
 
-# _, term_width = os.popen('stty size', 'r').read().split()
-# term_width = int(term_width)
-# TOTAL_BAR_LENGTH = 86.
-# last_time = time.time()
-# begin_time = last_time
+_, term_width = os.popen('stty size', 'r').read().split()
+term_width = int(term_width)
+TOTAL_BAR_LENGTH = 86.
+last_time = time.time()
+begin_time = last_time
 def progress_bar(current, total, msg=None):
     global last_time, begin_time
     if current == 0:
