@@ -2,5 +2,4 @@
 Train _RetinaNet_ with _Focal Loss_ in PyTorch.
 
 Reference:  
-[1] T. Lin, P. Goyal, R. Girshick, K. He, P. Dollár  
-Focal Loss for Dense Object Detection  [arXiv](https://arxiv.org/abs/1708.02002)  
+[1] [Focal Loss for Dense Object Detection](https://arxiv.org/abs/1708.02002)  

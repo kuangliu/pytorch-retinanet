@@ -152,7 +152,7 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
     Returns:
       keep: (tensor) selected indices.
 
-    Ref:
+    Reference:
       https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/nms/py_cpu_nms.py
     '''
     x1 = bboxes[:,0]

@@ -116,8 +116,8 @@ def RetinaFPN101():
 
 def test():
     net = RetinaFPN101()
-    fms = net(Variable(torch.randn(1,3,600,150)))
+    fms = net(Variable(torch.randn(1,3,600,900)))
     for fm in fms:
         print(fm.size())
 
-test()
+# test()
