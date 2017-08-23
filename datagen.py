@@ -145,7 +145,7 @@ class ListDataset(data.Dataset):
 
     @staticmethod
     def collate_fn(batch):
-        '''As for images are of different sizes, we need to padding them into the same size.
+        '''As for images are of different sizes, we need to pad them to the same size.
 
         Args:
           batch: (list) of images, cls_targets, loc_targets.
@@ -160,14 +160,14 @@ class ListDataset(data.Dataset):
         loc_targets = [x[1] for x in batch]
         cls_targets = [x[2] for x in batch]
 
-        max_size = torch.IntTensor([im.size() for im in images]).max()
+        max_size, _ = torch.IntTensor([im.size() for im in images]).max(0)
         num_images = len(images)
-        im_tensor = torch.zeros(num_images, 3, max_size, max_size)
+        inputs = torch.zeros(num_images, 3, max_size[1], max_size[2])
 
         for i in range(num_images):
             im = images[i]
-            im_tensor[i,:,:im.size(1),:im.size(2)] = im
-        return im_tensor, torch.stack(loc_targets), torch.stack(cls_targets)
+            inputs[i,:,:im.size(1),:im.size(2)] = im
+        return inputs, torch.stack(loc_targets), torch.stack(cls_targets)
 
 
 def test():
