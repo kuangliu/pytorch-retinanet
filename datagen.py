@@ -66,11 +66,8 @@ class ListDataset(data.Dataset):
             self.boxes.append(torch.Tensor(box))
             self.labels.append(torch.LongTensor(label))
 
-    def __len__(self):
-        return self.num_samples
-
     def __getitem__(self, idx):
-        '''Load a image, and encode its bbox locations and class labels.
+        '''Load image.
 
         Args:
           idx: (int) image index.
@@ -90,16 +87,9 @@ class ListDataset(data.Dataset):
         if self.train:
             img, boxes = self.random_flip(img, boxes)
 
-        # Scale boxes to range [0,1].
-        w,h = img.size
-        boxes /= torch.Tensor([w,h,w,h]).expand_as(boxes)
-
         img = self.resize(img)
         img = self.transform(img)
-
-        # Encode data.
-        loc_targets, cls_targets = self.data_encoder.encode(boxes, labels, self.input_size)
-        return img, loc_targets, cls_targets
+        return img, boxes, labels
 
     def resize(self, img):
         '''Resize the image shorter side to input_size.
@@ -143,9 +133,10 @@ class ListDataset(data.Dataset):
             boxes[:,2] = xmax
         return img, boxes
 
-    @staticmethod
-    def collate_fn(batch):
-        '''As for images are of different sizes, we need to pad them to the same size.
+    def collate_fn(self, batch):
+        '''Pad images and encode targets.
+
+        As for images are of different sizes, we need to pad them to the same size.
 
         Args:
           batch: (list) of images, cls_targets, loc_targets.
@@ -156,18 +147,35 @@ class ListDataset(data.Dataset):
         Reference:
           https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/utils/blob.py
         '''
-        images      = [x[0] for x in batch]
-        loc_targets = [x[1] for x in batch]
-        cls_targets = [x[2] for x in batch]
+        images = [x[0] for x in batch]
+        boxes  = [x[1] for x in batch]
+        labels = [x[2] for x in batch]
 
         max_size, _ = torch.IntTensor([im.size() for im in images]).max(0)
+        max_h, max_w = max_size[1], max_size[2]
         num_images = len(images)
-        inputs = torch.zeros(num_images, 3, max_size[1], max_size[2])
+        inputs = torch.zeros(num_images, 3, max_h, max_w)
 
+        loc_targets = []
+        cls_targets = []
         for i in range(num_images):
             im = images[i]
-            inputs[i,:,:im.size(1),:im.size(2)] = im
+            imh, imw = im.size(1), im.size(2)
+            inputs[i,:,:imh,:imw] = im
+
+            # Scale box to range [0, max_size].
+            w_scale = 1.*max_w/imw
+            h_scale = 1.*max_h/imh
+            boxes[i] *= torch.Tensor([w_scale,h_scale,w_scale,h_scale]).expand_as(boxes[i])
+
+            # Encode data.
+            loc_target, cls_target = self.data_encoder.encode(boxes[i], labels[i], input_size=(max_h,max_w))
+            loc_targets.append(loc_target)
+            cls_targets.append(cls_target)
         return inputs, torch.stack(loc_targets), torch.stack(cls_targets)
+
+    def __len__(self):
+        return self.num_samples
 
 
 def test():
@@ -176,7 +184,7 @@ def test():
     transform = transforms.Compose([transforms.ToTensor()])
     dataset = ListDataset(root='/mnt/hgfs/D/download/PASCA_VOC/voc_all_images',
                           list_file='./voc_data/test.txt', train=False, transform=transform, input_size=600, max_size=1000)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=1, collate_fn=ListDataset.collate_fn)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=1, collate_fn=dataset.collate_fn)
 
     for images, loc_targets, cls_targets in dataloader:
         print(images.size())
@@ -186,4 +194,4 @@ def test():
         torchvision.utils.save_image(grid,'a.jpg')
         break
 
-test()
+# test()

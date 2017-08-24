@@ -34,23 +34,24 @@ class DataEncoder:
         '''Compute anchor boxes for each feature map.
 
         Args:
-          input_size: (int) model input size.
+          input_size: (tensor) model input size of (input_height, input_width).
 
         Returns:
           boxes: (list) anchor boxes for each feature map. Each of size [#total_anchors,4],
                         where #total_anchors = fmh * fmw * #anchors_per_cell
         '''
         num_fms = len(self.anchor_areas)
-        fm_sizes = [int(input_size/pow(2.,i+3)+0.5) for i in range(num_fms)]  # p3 -> p7 feature map sizes
+        fm_sizes = [(input_size/pow(2.,i+3)).ceil() for i in range(num_fms)]  # p3 -> p7 feature map sizes
         # TODO: make sure computed fm_sizes is the same as feature_map sizes
 
         boxes = []
         for i in range(num_fms):
             fm_size = fm_sizes[i]
-            grid_size = input_size//fm_size
-            xy = meshgrid(fm_size, swap_dims=True) + 0.5  # [fm_size*fm_size,2]
-            xy = (xy*grid_size).view(fm_size,fm_size,1,2).expand(fm_size,fm_size,9,2)
-            wh = self.anchor_wh[i].view(1,1,9,2).expand(fm_size,fm_size,9,2)
+            grid_size = (input_size/fm_size).floor()
+            fm_h, fm_w = int(fm_size[0]), int(fm_size[1])
+            xy = meshgrid(fm_w,fm_h) + 0.5  # [fm_h*fm_w,2]
+            xy = (xy*grid_size).view(fm_h,fm_w,1,2).expand(fm_h,fm_w,9,2)
+            wh = self.anchor_wh[i].view(1,1,9,2).expand(fm_h,fm_w,9,2)
             box = torch.cat([xy,wh], 3)  # [x,y,w,h]
             boxes.append(box.view(-1,4))
         return torch.cat(boxes, 0)
@@ -59,17 +60,19 @@ class DataEncoder:
         '''Encode target bounding boxes and class labels.
 
         Args:
-          boxes: (tensor) bounding boxes of (xmin,ymin,xmax,ymax) in range [0,1], sized [#obj, 4].
+          boxes: (tensor) bounding boxes of (xmin,ymin,xmax,ymax), sized [#obj, 4].
           labels: (tensor) object class labels, sized [#obj,].
-          input_size: (int) model input size.
+          input_size: (int/tuple) model input size of (input_height, input_width).
 
         Returns:
           loc_targets: (tensor) encoded bounding boxes, sized [#total_anchors,4].
           cls_targets: (tensor) encoded class labels, sized [#total_anchors].
         '''
+        input_size = torch.Tensor([input_size,input_size]) if isinstance(input_size, int) \
+                     else torch.Tensor(input_size)
+
         anchor_boxes = self._get_anchor_boxes(input_size)
         boxes = change_box_order(boxes, 'xyxy2xywh')
-        boxes = boxes * input_size  # scale to range [0,input_size]
 
         ious = box_iou(anchor_boxes, boxes, order='xywh')
         max_ious, max_ids = ious.max(1)
@@ -96,9 +99,8 @@ def test():
     h = 32
     boxes = torch.Tensor([[cx-w/2.,cy-w/2.,cx+w/2.,cy+w/2.]])
     labels = torch.LongTensor([1])
-    boxes /= torch.Tensor([in_size,in_size,in_size,in_size]).expand_as(boxes)
     encoder = DataEncoder()
-    loc_targets, cls_targets = encoder.encode(boxes, labels, input_size=in_size)
+    loc_targets, cls_targets = encoder.encode(boxes, labels, input_size=(in_size))
 
 def test2():
     line = '335 500 139 200 207 301 18'
@@ -115,7 +117,6 @@ def test2():
 
     boxes = torch.Tensor(boxes)
     labels = torch.LongTensor(labels)
-    boxes /= torch.Tensor([w,h,w,h]).expand_as(boxes)
 
     encoder = DataEncoder()
     loc_targets, cls_targets = encoder.encode(boxes, labels, input_size=600)

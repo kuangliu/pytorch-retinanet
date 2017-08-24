@@ -17,9 +17,16 @@ class RetinaNet(nn.Module):
 
     def forward(self, x):
         fms = self.fpn(x)
-        loc_preds = [self.loc_head(fm) for fm in fms]
-        cls_preds = [self.cls_head(fm) for fm in fms]
-        return loc_preds, cls_preds
+        loc_preds = []
+        cls_preds = []
+        for fm in fms:
+            loc_pred = self.loc_head(fm)
+            cls_pred = self.cls_head(fm)
+            loc_pred = loc_pred.permute(0,2,3,1).contiguous().view(x.size(0),-1,4)  #[N,num_anchors*4,H,W] -> [N,H,W,num_anchors*4] -> [N,H*W*num_anchors,4]
+            cls_pred = cls_pred.permute(0,2,3,1).contiguous().view(x.size(0),-1,self.num_classes)
+            loc_preds.append(loc_pred)
+            cls_preds.append(cls_pred)
+        return torch.cat(loc_preds,1), torch.cat(cls_preds,1)
 
     def _make_head(self, out_planes):
         layers = []
@@ -32,9 +39,12 @@ class RetinaNet(nn.Module):
 
 def test():
     net = RetinaNet()
-    loc_preds, cls_preds = net(Variable(torch.randn(1,3,224,224)))
-    for (a,b) in zip(loc_preds, cls_preds):
-        print(a.size())
-        print(b.size())
+    loc_preds, cls_preds = net(Variable(torch.randn(2,3,224,224)))
+    print(loc_preds.size())
+    print(cls_preds.size())
+    loc_grads = Variable(torch.randn(loc_preds.size()))
+    cls_grads = Variable(torch.randn(cls_preds.size()))
+    loc_preds.backward(loc_grads)
+    cls_preds.backward(cls_grads)
 
 # test()

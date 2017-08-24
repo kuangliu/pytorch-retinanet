@@ -59,27 +59,31 @@ def mask_select(input, mask, dim=0):
     index = mask.nonzero().squeeze(1)
     return input.index_select(dim, index)
 
-def meshgrid(x, swap_dims=False):
-    '''Return meshgrid in range x.
+def meshgrid(x, y, swap_dims=False):
+    '''Return meshgrid in range x & y.
 
     Args:
-      x: (int) mesh range.
+      x: (int) first dim ranage.
+      y: (int) second dim range.
       swap_dims: (bool) swap dims.
 
     Returns:
-      (tensor) meshgrid, sized [x*x,2]
+      (tensor) meshgrid, sized [x*y,2]
 
     Example:
-    >> meshgrid(2)
+    >> meshgrid(3,2)
     0  0
     0  1
     1  0
     1  1
-    [torch.FloatTensor of size 4x2]
+    2  0
+    2  1
+    [torch.FloatTensor of size 6x2]
     '''
     a = torch.arange(0,x)
-    xx = a.view(-1,1).repeat(1,x).view(-1,1)
-    yy = a.repeat(x,1).view(-1,1)
+    b = torch.arange(0,y)
+    xx = a.view(-1,1).repeat(1,y).view(-1,1)
+    yy = b.repeat(x,1).view(-1,1)
     return torch.cat([yy,xx],1) if swap_dims else torch.cat([xx,yy],1)
 
 def change_box_order(boxes, order):
