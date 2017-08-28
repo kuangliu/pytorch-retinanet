@@ -63,7 +63,7 @@ def meshgrid(x, y, swap_dims=False):
     '''Return meshgrid in range x & y.
 
     Args:
-      x: (int) first dim ranage.
+      x: (int) first dim range.
       y: (int) second dim range.
       swap_dims: (bool) swap dims.
 
@@ -207,9 +207,9 @@ def softmax(x):
       (tensor) softmaxed tensor, sized [N,D].
     '''
     xmax, _ = x.max(1)
-    x_shift = x - xmax.expand_as(x)
+    x_shift = x - xmax.view(-1,1)
     x_exp = x_shift.exp()
-    return x_exp / x_exp.sum(1).expand_as(x_exp)
+    return x_exp / x_exp.sum(1).view(-1,1)
 
 def msr_init(net):
     '''Initialize layer parameters.'''
