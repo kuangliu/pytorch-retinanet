@@ -53,7 +53,7 @@ class FocalLoss(nn.Module):
         Args:
           loc_preds: (tensor) predicted locations, sized [batch_size, #anchors, 4].
           loc_targets: (tensor) encoded target locations, sized [batch_size, #anchors, 4].
-          cls_preds: (tensor) predicted class confidences, sized [batch_size, #anchors, num_classes].
+          cls_preds: (tensor) predicted class confidences, sized [batch_size, #anchors, #classes].
           cls_targets: (tensor) encoded target labels, sized [batch_size, #anchors].
 
         loss:
@@ -69,7 +69,7 @@ class FocalLoss(nn.Module):
         mask = pos.unsqueeze(2).expand_as(loc_preds)       # [N,#anchors,4]
         masked_loc_preds = loc_preds[mask].view(-1,4)      # [#pos,4]
         masked_loc_targets = loc_targets[mask].view(-1,4)  # [#pos,4]
-        loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets)
+        loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets, size_average=False)
 
         ################################################################
         # cls_loss = FocalLoss(loc_preds, loc_targets)
@@ -79,6 +79,6 @@ class FocalLoss(nn.Module):
         masked_cls_preds = cls_preds[mask].view(-1,self.num_classes)
         cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg])
 
-        print('loc_loss: %.3f | cls_loss: %.3f' % (loc_loss.data[0], cls_loss.data[0]/num_pos), end=' | ')
-        loss = loc_loss + cls_loss/num_pos
+        print('loc_loss: %.3f | cls_loss: %.3f' % (loc_loss.data[0]/num_pos, cls_loss.data[0]/num_pos), end=' | ')
+        loss = (loc_loss+cls_loss)/num_pos
         return loss
