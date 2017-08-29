@@ -87,7 +87,8 @@ class ListDataset(data.Dataset):
         if self.train:
             img, boxes = self.random_flip(img, boxes)
 
-        img = self.resize(img)
+        img, im_scale = self.resize(img)
+        boxes *= im_scale
         img = self.transform(img)
         return img, boxes, labels
 
@@ -99,6 +100,7 @@ class ListDataset(data.Dataset):
 
         Returns:
           (PIL.Image) resized image.
+          (float) image scale.
 
         Reference:
           https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/utils/blob.py
@@ -108,7 +110,9 @@ class ListDataset(data.Dataset):
         im_scale = float(self.input_size) / float(im_size_min)
         if round(im_scale*im_size_max) > self.max_size:  # limit the longer side to MAX_SIZE
             im_scale = float(self.max_size) / float(im_size_max)
-        return img.resize((int(img.width*im_scale), int(img.height*im_scale)))
+        w = int(img.width*im_scale)
+        h = int(img.height*im_scale)
+        return img.resize((w,h)), im_scale
 
     def random_flip(self, img, boxes):
         '''Randomly flip the image and adjust the bbox locations.
@@ -147,26 +151,21 @@ class ListDataset(data.Dataset):
         Reference:
           https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/utils/blob.py
         '''
-        images = [x[0] for x in batch]
+        imgs = [x[0] for x in batch]
         boxes  = [x[1] for x in batch]
         labels = [x[2] for x in batch]
 
-        max_size, _ = torch.IntTensor([im.size() for im in images]).max(0)
+        max_size, _ = torch.IntTensor([im.size() for im in imgs]).max(0)
         max_h, max_w = max_size[1], max_size[2]
-        num_images = len(images)
-        inputs = torch.zeros(num_images, 3, max_h, max_w)
+        num_imgs = len(imgs)
+        inputs = torch.zeros(num_imgs, 3, max_h, max_w)
 
         loc_targets = []
         cls_targets = []
-        for i in range(num_images):
-            im = images[i]
+        for i in range(num_imgs):
+            im = imgs[i]
             imh, imw = im.size(1), im.size(2)
             inputs[i,:,:imh,:imw] = im
-
-            # Scale box to range [0, max_size].
-            w_scale = 1.*max_w/imw
-            h_scale = 1.*max_h/imh
-            boxes[i] *= torch.Tensor([w_scale,h_scale,w_scale,h_scale]).expand_as(boxes[i])
 
             # Encode data.
             loc_target, cls_target = self.data_encoder.encode(boxes[i], labels[i], input_size=(max_h,max_w))

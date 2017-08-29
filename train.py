@@ -20,7 +20,7 @@ from torch.autograd import Variable
 
 
 parser = argparse.ArgumentParser(description='PyTorch RetinaNet Training')
-parser.add_argument('--lr', default=1e-3, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 args = parser.parse_args()
 
@@ -70,10 +70,11 @@ def train(epoch):
         loc_preds, cls_preds = net(inputs)
         loss = criterion(loc_preds, loc_targets, cls_preds, cls_targets)
         loss.backward()
+        nn.utils.clip_grad_norm(net.parameters(), max_norm=1.2)
         optimizer.step()
 
         train_loss += loss.data[0]
-        print('%.3f %.3f' % (loss.data[0], train_loss/(batch_idx+1)))
+        print('train_loss: %.3f | avg_loss: %.3f' % (loss.data[0], train_loss/(batch_idx+1)))
 
 # Test
 def test(epoch):
@@ -85,10 +86,10 @@ def test(epoch):
         loc_targets = Variable(loc_targets.cuda())
         cls_targets = Variable(cls_targets.cuda())
 
-        outputs = net(inputs)
+        loc_preds, cls_preds = net(inputs)
         loss = criterion(loc_preds, loc_targets, cls_preds, cls_targets)
         test_loss += loss.data[0]
-        print('%.3f %.3f' % (loss.data[0], test_loss/(batch_idx+1)))
+        print('test_loss: %.3f | avg_loss: %.3f' % (loss.data[0], test_loss/(batch_idx+1)))
 
     # Save checkpoint
     global best_loss
@@ -108,4 +109,4 @@ def test(epoch):
 
 for epoch in range(start_epoch, start_epoch+200):
     train(epoch)
-    # test(epoch)
+    test(epoch)
