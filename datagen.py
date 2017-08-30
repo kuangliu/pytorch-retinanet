@@ -23,19 +23,17 @@ from PIL import Image, ImageOps
 
 
 class ListDataset(data.Dataset):
-    def __init__(self, root, list_file, train, transform, input_size, max_size):
+    def __init__(self, root, list_file, train, input_size, max_size):
         '''
         Args:
           root: (str) ditectory to images.
           list_file: (str) path to index file.
           train: (boolean) train or test.
-          transform: ([transforms]) image transforms.
           input_size: (int) image shorter side size.
           max_size: (int) maximum image longer side size.
         '''
         self.root = root
         self.train = train
-        self.transform = transform
         self.input_size = input_size
         self.max_size = max_size
 
@@ -88,8 +86,8 @@ class ListDataset(data.Dataset):
             img, boxes = self.random_flip(img, boxes)
 
         img, im_scale = self.resize(img)
+        img = transforms.ToTensor()(img)
         boxes *= im_scale
-        img = self.transform(img)
         return img, boxes, labels
 
     def resize(self, img):
@@ -180,9 +178,8 @@ class ListDataset(data.Dataset):
 def test():
     import torchvision
 
-    transform = transforms.Compose([transforms.ToTensor()])
-    dataset = ListDataset(root='/mnt/hgfs/D/download/PASCA_VOC/voc_all_images',
-                          list_file='./voc_data/test.txt', train=False, transform=transform, input_size=600, max_size=1000)
+    dataset = ListDataset(root='/mnt/hgfs/D/download/PASCAL_VOC/voc_all_images',
+                          list_file='./voc_data/test.txt', train=False, input_size=600, max_size=1000)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=1, collate_fn=dataset.collate_fn)
 
     for images, loc_targets, cls_targets in dataloader:
