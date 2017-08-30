@@ -2,7 +2,7 @@
 import math
 import torch
 
-from utils import meshgrid, box_iou, change_box_order
+from utils import meshgrid, box_iou, box_nms, change_box_order
 
 
 class DataEncoder:
@@ -37,8 +37,8 @@ class DataEncoder:
           input_size: (tensor) model input size of (input_height, input_width).
 
         Returns:
-          boxes: (list) anchor boxes for each feature map. Each of size [#total_anchors,4],
-                        where #total_anchors = fmh * fmw * #anchors_per_cell
+          boxes: (list) anchor boxes for each feature map. Each of size [#anchors,4],
+                        where #anchors = fmh * fmw * #anchors_per_cell
         '''
         num_fms = len(self.anchor_areas)
         fm_sizes = [(input_size/pow(2.,i+3)).ceil() for i in range(num_fms)]  # p3 -> p7 feature map sizes
@@ -65,8 +65,8 @@ class DataEncoder:
           input_size: (int/tuple) model input size of (input_height, input_width).
 
         Returns:
-          loc_targets: (tensor) encoded bounding boxes, sized [#total_anchors,4].
-          cls_targets: (tensor) encoded class labels, sized [#total_anchors].
+          loc_targets: (tensor) encoded bounding boxes, sized [#anchors,4].
+          cls_targets: (tensor) encoded class labels, sized [#anchors,].
         '''
         input_size = torch.Tensor([input_size,input_size]) if isinstance(input_size, int) \
                      else torch.Tensor(input_size)
@@ -88,6 +88,37 @@ class DataEncoder:
         cls_targets[ignore] = -1  # for now just mark ignored to -1
         return loc_targets, cls_targets
 
+    def decode(self, loc_preds, cls_preds, input_size):
+        '''Decode outputs back to bouding box locations and class labels.
+
+        Args:
+          loc_preds: (tensor) predicted locations, sized [#anchors, 4].
+          cls_preds: (tensor) predicted class labels, sized [#anchors, #classes].
+          input_size: (int/tuple) model input size of (input_height, input_width).
+
+        Returns:
+          boxes: (tensor) decode box locations, sized [#obj,4].
+          labels: (tensor) class labels for each box, sized [#obj,].
+        '''
+        CLS_THRESH = 0.05
+        NMS_THRESH = 0.5
+
+        input_size = torch.Tensor([input_size,input_size]) if isinstance(input_size, int) \
+                     else torch.Tensor(input_size)
+        anchor_boxes = self._get_anchor_boxes(input_size)
+
+        loc_xy = loc_preds[:,:2]
+        loc_wh = loc_preds[:,2:]
+        xy = loc_xy * anchor_boxes[:,2:] + anchor_boxes[:,:2]
+        wh = loc_wh.exp() * anchor_boxes[:,2:]
+        boxes = torch.cat([xy-wh/2, xy+wh/2], 1)  # [#anchors,4]
+
+        score, labels = cls_preds.max(1)          # [#anchors,]
+        ids = (score > CLS_THRESH) & (labels > 0)
+        ids = ids.nonzero().squeeze()             # [#obj,]
+        keep = box_nms(boxes[ids], score[ids], threshold=NMS_THRESH)
+        return boxes[ids][keep], labels[ids][keep]
+
 
 def test():
     in_size = 600
@@ -98,9 +129,17 @@ def test():
     w = 32
     h = 32
     boxes = torch.Tensor([[cx-w/2.,cy-w/2.,cx+w/2.,cy+w/2.]])
-    labels = torch.LongTensor([1])
+    labels = torch.LongTensor([2])
     encoder = DataEncoder()
     loc_targets, cls_targets = encoder.encode(boxes, labels, input_size=(in_size))
+    print(boxes)
+    print(labels)
+    loc_preds = loc_targets
+    cls_preds = torch.zeros(1,21)
+    cls_preds[0,3] = 1
+    boxes_, labels_ = encoder.decode(loc_preds, cls_preds, input_size=(in_size))
+    print(boxes_)
+    print(labels_)
 
 def test2():
     line = '335 500 139 200 207 301 18'
@@ -114,10 +153,8 @@ def test2():
     for i in range(N):
         boxes.append([float(x) for x in [sp[5*i+2],sp[5*i+3],sp[5*i+4],sp[5*i+5]]])
         labels.append(int(sp[5*i+6]))
-
     boxes = torch.Tensor(boxes)
     labels = torch.LongTensor(labels)
-
     encoder = DataEncoder()
     loc_targets, cls_targets = encoder.encode(boxes, labels, input_size=600)
 

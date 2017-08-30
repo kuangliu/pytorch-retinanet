@@ -9,6 +9,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 
+import torchvision
+import torchvision.transforms as transforms
+
 from loss import FocalLoss
 from retinanet import RetinaNet
 from datagen import ListDataset
@@ -27,12 +30,17 @@ start_epoch = 0  # start from epoch 0 or last epoch
 
 # Data
 print('==> Preparing data..')
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.485,0.456,0.406), (0.229,0.224,0.225))
+])
+
 trainset = ListDataset(root='/search/odin/liukuang/data/voc_all_images',
-                       list_file='./voc_data/voc12_train.txt', train=True, input_size=600, max_size=1000)
+                       list_file='./voc_data/test.txt', train=True, transform=transform, input_size=600, max_size=1000)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
 
 testset = ListDataset(root='/search/odin/liukuang/data/voc_all_images',
-                      list_file='./voc_data/voc12_test.txt', train=False, input_size=600, max_size=1000)
+                      list_file='./voc_data/test.txt', train=False, transform=transform, input_size=600, max_size=1000)
 testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
 
 # Model
