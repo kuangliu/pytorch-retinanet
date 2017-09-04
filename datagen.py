@@ -155,8 +155,8 @@ class ListDataset(data.Dataset):
         boxes  = [x[1] for x in batch]
         labels = [x[2] for x in batch]
 
-        max_h = max(im.size(1) for im in imgs)
-        max_w = max(im.size(2) for im in imgs)
+        max_h = max([im.size(1) for im in imgs])
+        max_w = max([im.size(2) for im in imgs])
         num_imgs = len(imgs)
         inputs = torch.zeros(num_imgs, 3, max_h, max_w)
 
