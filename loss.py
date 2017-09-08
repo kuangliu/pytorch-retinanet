@@ -4,6 +4,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils import one_hot_embedding
+from torch.autograd import Variable
+
 
 class FocalLoss(nn.Module):
     num_classes = 21
@@ -21,31 +24,19 @@ class FocalLoss(nn.Module):
         Return:
           (tensor) focal loss.
         '''
-        alpha = 0.75
+        alpha = 0.25
         gamma = 2
-        logp = F.log_softmax(x)
-        p = logp.exp()
-        w = alpha*(y>0).float() + (1-alpha)*(y==0).float()
-        wp = w.view(-1,1) * (1-p).pow(gamma) * logp
-        return F.nll_loss(wp, y, size_average=False)
 
-    def focal_loss_alt(self,x,y):
-        '''Focal loss alternate described in appendix.
+        t = one_hot_embedding(y.data.cpu(), self.num_classes)  # [N,D]
+        t = Variable(t).cuda()
 
-        Args:
-          x: (tensor) sized [N,D].
-          y: (tensor) sized [N,].
+        p = x.sigmoid()
+        pt = p.clone()
+        pt[t==0] = 1 - p[t==0]   # pt = p if t>0 else 1-p
 
-        Return:
-          (tensor) focal loss.
-        '''
-        alpha = 0.75
-        gamma = 2
-        beta = 1
-        x[y.view(-1,1).expand_as(x)==0] *= -1
-        w = alpha*(y>0).float() + (1-alpha)*(y==0).float()
-        wp = w.view(-1,1)*F.log_softmax(gamma*x+beta)
-        return F.nll_loss(wp, y, size_average=False) / gamma
+        w = alpha*t + (1-alpha)*(1-t)
+        w = w * (1-pt).pow(gamma)
+        return F.binary_cross_entropy_with_logits(x, t, w, size_average=False)
 
     def forward(self, loc_preds, loc_targets, cls_preds, cls_targets):
         '''Compute loss between (loc_preds, loc_targets) and (cls_preds, cls_targets).

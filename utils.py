@@ -211,6 +211,22 @@ def softmax(x):
     x_exp = x_shift.exp()
     return x_exp / x_exp.sum(1).view(-1,1)
 
+def one_hot_embedding(labels, num_classes):
+    '''Embedding labels to one-hot form.
+
+    Args:
+      labels: (LongTensor) class labels, sized [N,].
+      num_classes: (int) number of classes.
+
+    Returns:
+      (tensor) encoded labels, sized [N,#classes].
+    '''
+    N = labels.size(0)
+    D = num_classes
+    y = torch.zeros(N,D)
+    y[torch.arange(0,N).long(),labels] = 1
+    return y
+
 def msr_init(net):
     '''Initialize layer parameters.'''
     for layer in net:
