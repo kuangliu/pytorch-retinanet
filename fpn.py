@@ -18,9 +18,9 @@ class Bottleneck(nn.Module):
         self.conv3 = nn.Conv2d(planes, self.expansion*planes, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(self.expansion*planes)
 
-        self.shortcut = nn.Sequential()
+        self.downsample = nn.Sequential()
         if stride != 1 or in_planes != self.expansion*planes:
-            self.shortcut = nn.Sequential(
+            self.downsample = nn.Sequential(
                 nn.Conv2d(in_planes, self.expansion*planes, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(self.expansion*planes)
             )
@@ -29,24 +29,24 @@ class Bottleneck(nn.Module):
         out = F.relu(self.bn1(self.conv1(x)))
         out = F.relu(self.bn2(self.conv2(out)))
         out = self.bn3(self.conv3(out))
-        out += self.shortcut(x)
+        out += self.downsample(x)
         out = F.relu(out)
         return out
 
 
-class RetinaFPN(nn.Module):
+class FPN(nn.Module):
     def __init__(self, block, num_blocks):
-        super(RetinaFPN, self).__init__()
+        super(FPN, self).__init__()
         self.in_planes = 64
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
 
         # Bottom-up layers
-        self.layer2 = self._make_layer(block,  64, num_blocks[0], stride=1)
-        self.layer3 = self._make_layer(block, 128, num_blocks[1], stride=2)
-        self.layer4 = self._make_layer(block, 256, num_blocks[2], stride=2)
-        self.layer5 = self._make_layer(block, 512, num_blocks[3], stride=2)
+        self.layer1 = self._make_layer(block,  64, num_blocks[0], stride=1)
+        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
         self.conv6 = nn.Conv2d(2048, 256, kernel_size=3, stride=2, padding=1)
         self.conv7 = nn.Conv2d( 256, 256, kernel_size=3, stride=2, padding=1)
 
@@ -94,10 +94,10 @@ class RetinaFPN(nn.Module):
         # Bottom-up
         c1 = F.relu(self.bn1(self.conv1(x)))
         c1 = F.max_pool2d(c1, kernel_size=3, stride=2, padding=1)
-        c2 = self.layer2(c1)
-        c3 = self.layer3(c2)
-        c4 = self.layer4(c3)
-        c5 = self.layer5(c4)
+        c2 = self.layer1(c1)
+        c3 = self.layer2(c2)
+        c4 = self.layer3(c3)
+        c5 = self.layer4(c4)
         p6 = self.conv6(c5)
         p7 = self.conv7(F.relu(p6))
         # Top-down
@@ -109,15 +109,15 @@ class RetinaFPN(nn.Module):
         return p3, p4, p5, p6, p7
 
 
-def RetinaFPN50():
-    return RetinaFPN(Bottleneck, [3,4,6,3])
+def FPN50():
+    return FPN(Bottleneck, [3,4,6,3])
 
-def RetinaFPN101():
-    return RetinaFPN(Bottleneck, [2,4,23,3])
+def FPN101():
+    return FPN(Bottleneck, [2,4,23,3])
 
 
 def test():
-    net = RetinaFPN101()
+    net = FPN50()
     fms = net(Variable(torch.randn(1,3,600,300)))
     for fm in fms:
         print(fm.size())
