@@ -8,18 +8,14 @@ from __future__ import print_function
 
 import os
 import sys
-import os.path
-
 import random
-import numpy as np
 
 import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-from utils import box_iou
+from PIL import Image
 from encoder import DataEncoder
-from PIL import Image, ImageOps
 
 
 class ListDataset(data.Dataset):

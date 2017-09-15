@@ -59,6 +59,14 @@ class DataEncoder:
     def encode(self, boxes, labels, input_size):
         '''Encode target bounding boxes and class labels.
 
+        We obey the Faster RCNN box coder:
+          tx = (x - anchor_x) / anchor_w
+          ty = (y - anchor_y) / anchor_h
+          tw = log(w / anchor_w)
+          th = log(h / anchor_h)
+
+        Then we scale [tx,ty,tw,th] by [10,10,5,5] times to make loc_loss larger.
+
         Args:
           boxes: (tensor) bounding boxes of (xmin,ymin,xmax,ymax), sized [#obj, 4].
           labels: (tensor) object class labels, sized [#obj,].
@@ -67,10 +75,13 @@ class DataEncoder:
         Returns:
           loc_targets: (tensor) encoded bounding boxes, sized [#anchors,4].
           cls_targets: (tensor) encoded class labels, sized [#anchors,].
+
+        Reference:
+          https://github.com/tensorflow/models/blob/master/object_detection/box_coders/faster_rcnn_box_coder.py
         '''
+        scale_factor = torch.Tensor([10,10,5,5])  # scale [tx,ty,tw,th]
         input_size = torch.Tensor([input_size,input_size]) if isinstance(input_size, int) \
                      else torch.Tensor(input_size)
-
         anchor_boxes = self._get_anchor_boxes(input_size)
         boxes = change_box_order(boxes, 'xyxy2xywh')
 
@@ -80,7 +91,7 @@ class DataEncoder:
 
         loc_xy = (boxes[:,:2]-anchor_boxes[:,:2]) / anchor_boxes[:,2:]
         loc_wh = torch.log(boxes[:,2:]/anchor_boxes[:,2:])
-        loc_targets = torch.cat([loc_xy,loc_wh], 1)
+        loc_targets = torch.cat([loc_xy,loc_wh], 1) * scale_factor
         cls_targets = 1 + labels[max_ids]
 
         cls_targets[max_ious<0.4] = 0
@@ -102,16 +113,22 @@ class DataEncoder:
         '''
         CLS_THRESH = 0.05
         NMS_THRESH = 0.5
+        scale_factor = torch.Tensor([10,10,5,5])  # scale [tx,ty,tw,th]
 
         input_size = torch.Tensor([input_size,input_size]) if isinstance(input_size, int) \
                      else torch.Tensor(input_size)
         anchor_boxes = self._get_anchor_boxes(input_size)
 
+        loc_preds /= scale_factor
         loc_xy = loc_preds[:,:2]
         loc_wh = loc_preds[:,2:]
         xy = loc_xy * anchor_boxes[:,2:] + anchor_boxes[:,:2]
         wh = loc_wh.exp() * anchor_boxes[:,2:]
         boxes = torch.cat([xy-wh/2, xy+wh/2], 1)  # [#anchors,4]
+        boxes[:,0].clamp_(min=0)
+        boxes[:,1].clamp_(min=0)
+        boxes[:,2].clamp_(max=input_size[1])
+        boxes[:,3].clamp_(max=input_size[0])
 
         score, labels = cls_preds.max(1)          # [#anchors,]
         ids = (score > CLS_THRESH) & (labels > 0)
