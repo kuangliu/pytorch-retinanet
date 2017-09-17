@@ -54,7 +54,6 @@ if args.resume:
 
 net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
 net.cuda()
-cudnn.benchmark = True
 
 criterion = FocalLoss()
 optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=1e-4)
