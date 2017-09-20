@@ -45,6 +45,7 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False, 
 
 # Model
 net = RetinaNet()
+net.load_state_dict('./model/net.pth')
 if args.resume:
     print('==> Resuming from checkpoint..')
     checkpoint = torch.load('./checkpoint/ckpt.pth')
@@ -72,7 +73,6 @@ def train(epoch):
         loc_preds, cls_preds = net(inputs)
         loss = criterion(loc_preds, loc_targets, cls_preds, cls_targets)
         loss.backward()
-        nn.utils.clip_grad_norm(net.parameters(), max_norm=1.2)
         optimizer.step()
 
         train_loss += loss.data[0]
@@ -84,7 +84,7 @@ def test(epoch):
     net.eval()
     test_loss = 0
     for batch_idx, (inputs, loc_targets, cls_targets) in enumerate(testloader):
-        inputs = Variable(inputs.cuda())
+        inputs = Variable(inputs.cuda(), volatile=True)
         loc_targets = Variable(loc_targets.cuda())
         cls_targets = Variable(cls_targets.cuda())
 

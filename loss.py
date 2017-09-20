@@ -9,7 +9,7 @@ from torch.autograd import Variable
 
 
 class FocalLoss(nn.Module):
-    num_classes = 21
+    num_classes = 20
 
     def __init__(self):
         super(FocalLoss, self).__init__()
@@ -27,8 +27,9 @@ class FocalLoss(nn.Module):
         alpha = 0.25
         gamma = 2
 
-        t = one_hot_embedding(y.data.cpu(), self.num_classes)  # [N,D]
-        t = Variable(t).cuda()
+        t = one_hot_embedding(y.data.cpu(), 1+self.num_classes)  # [N,21]
+        t = t[:,1:]  # exclude background
+        t = Variable(t).cuda()  # [N,20]
 
         p = x.sigmoid()
         pt = p.clone()
