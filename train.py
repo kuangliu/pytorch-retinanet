@@ -45,7 +45,7 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False, 
 
 # Model
 net = RetinaNet()
-net.load_state_dict('./model/net.pth')
+net.load_state_dict(torch.load('./model/net.pth'))
 if args.resume:
     print('==> Resuming from checkpoint..')
     checkpoint = torch.load('./checkpoint/ckpt.pth')
