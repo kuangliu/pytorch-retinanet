@@ -82,6 +82,7 @@ class ListDataset(data.Dataset):
         # Data augmentation while training.
         if self.train:
             img, boxes = self.random_flip(img, boxes)
+            img, boxes = self.scale_jitter(img, boxes)
 
         img, im_scale = self.resize(img)
         boxes *= im_scale
@@ -131,6 +132,27 @@ class ListDataset(data.Dataset):
             xmax = w - boxes[:,0]
             boxes[:,0] = xmin
             boxes[:,2] = xmax
+        return img, boxes
+
+    def scale_jitter(self, img, boxes):
+        '''Scale image size randomly to [3/4,4/3].
+
+        Args:
+          img: (PIL.Image) image.
+          boxes: (tensor) bbox locations, sized [#obj, 4].
+
+        Returns:
+          img: (PIL.Image) scaled image.
+          boxes: (tensor) scaled bbox locations, sized [#obj, 4].
+        '''
+        imw, imh = img.size
+        sw = random.uniform(3/4., 4/3.)
+        sh = random.uniform(3/4., 4/3.)
+        w = int(imw*sw)
+        h = int(imh*sh)
+        img = img.resize((w,h))
+        boxes[:,::2] *= sw
+        boxes[:,1::2] *= sh
         return img, boxes
 
     def collate_fn(self, batch):
