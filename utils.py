@@ -115,6 +115,9 @@ def box_iou(box1, box2, order='xyxy'):
 
     Return:
       (tensor) iou, sized [N,M].
+
+    Reference:
+      https://github.com/chainer/chainercv/blob/master/chainercv/utils/bbox/bbox_iou.py
     '''
     if order == 'xywh':
         box1 = change_box_order(box1, 'xywh2xyxy')
@@ -123,25 +126,15 @@ def box_iou(box1, box2, order='xyxy'):
     N = box1.size(0)
     M = box2.size(0)
 
-    lt = torch.max(
-        box1[:,:2].unsqueeze(1).expand(N,M,2),  # [N,2] -> [N,1,2] -> [N,M,2]
-        box2[:,:2].unsqueeze(0).expand(N,M,2),  # [M,2] -> [1,M,2] -> [N,M,2]
-    )
+    lt = torch.max(box1[:,None,:2], box2[:,:2])  # [N,M,2]
+    rb = torch.min(box1[:,None,2:], box2[:,2:])  # [N,M,2]
 
-    rb = torch.min(
-        box1[:,2:].unsqueeze(1).expand(N,M,2),  # [N,2] -> [N,1,2] -> [N,M,2]
-        box2[:,2:].unsqueeze(0).expand(N,M,2),  # [M,2] -> [1,M,2] -> [N,M,2]
-    )
-
-    wh = (rb-lt).clamp(min=0)  # [N,M,2]
+    wh = (rb-lt).clamp(min=0)      # [N,M,2]
     inter = wh[:,:,0] * wh[:,:,1]  # [N,M]
 
     area1 = (box1[:,2]-box1[:,0]) * (box1[:,3]-box1[:,1])  # [N,]
     area2 = (box2[:,2]-box2[:,0]) * (box2[:,3]-box2[:,1])  # [M,]
-    area1 = area1.unsqueeze(1).expand_as(inter)  # [N,] -> [N,1] -> [N,M]
-    area2 = area2.unsqueeze(0).expand_as(inter)  # [M,] -> [1,M] -> [N,M]
-
-    iou = inter / (area1 + area2 - inter)
+    iou = inter / (area1[:,None] + area2 - inter)
     return iou
 
 def box_nms(bboxes, scores, threshold=0.5, mode='union'):
