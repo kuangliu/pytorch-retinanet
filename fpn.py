@@ -58,7 +58,6 @@ class FPN(nn.Module):
         # Top-down layers
         self.toplayer1 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
         self.toplayer2 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
-        self.toplayer3 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -86,7 +85,7 @@ class FPN(nn.Module):
         e.g.
         original input size: [N,_,15,15] ->
         conv2d feature map size: [N,_,8,8] ->
-        upsamped feature map size: [N,_,16,16]
+        upsampled feature map size: [N,_,16,16]
         '''
         _,_,H,W = y.size()
         return x[:,:,:H,:W] + y
@@ -102,12 +101,11 @@ class FPN(nn.Module):
         p6 = self.conv6(c5)
         p7 = self.conv7(F.relu(p6))
         # Top-down
-        p5 = self._add(F.upsample(p6, scale_factor=2), self.latlayer1(c5))
-        p5 = self.toplayer1(p5)
+        p5 = self.latlayer1(c5)
         p4 = self._add(F.upsample(p5, scale_factor=2), self.latlayer2(c4))
-        p4 = self.toplayer2(p4)
+        p4 = self.toplayer1(p4)
         p3 = self._add(F.upsample(p4, scale_factor=2), self.latlayer3(c3))
-        p3 = self.toplayer3(p3)
+        p3 = self.toplayer2(p3)
         return p3, p4, p5, p6, p7
 
 
