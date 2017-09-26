@@ -68,7 +68,7 @@ class DataEncoder:
           boxes: (tensor) bounding boxes of (xmin,ymin,xmax,ymax), sized [#obj, 4].
           labels: (tensor) object class labels, sized [#obj,].
           input_size: (int/tuple) model input size of (input_height, input_width).
-          train: (bool) train or eval model.
+          train: (bool) train or eval mode.
 
         Returns:
           loc_targets: (tensor) encoded bounding boxes, sized [#anchors,4].
@@ -88,7 +88,7 @@ class DataEncoder:
         loc_targets = torch.cat([loc_xy,loc_wh], 1)
         cls_targets = 1 + labels[max_ids]
 
-        cls_targets[max_ious<0.4] = 0
+        cls_targets[max_ious<0.5] = 0
         if train:
             ignore = (max_ious>0.4) & (max_ious<0.5)  # ignore ious between [0.4,0.5]
             cls_targets[ignore] = -1  # for now just mark ignored to -1
