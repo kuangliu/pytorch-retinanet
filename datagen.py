@@ -102,13 +102,17 @@ class ListDataset(data.Dataset):
         Reference:
           https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/utils/blob.py
         '''
-        im_size_min = min(img.size)
-        im_size_max = max(img.size)
-        im_scale = float(self.input_size) / float(im_size_min)
-        if round(im_scale*im_size_max) > self.max_size:  # limit the longer side to MAX_SIZE
-            im_scale = float(self.max_size) / float(im_size_max)
-        w = int(img.width*im_scale)
-        h = int(img.height*im_scale)
+        # im_size_min = min(img.size)
+        # im_size_max = max(img.size)
+        # im_scale = float(self.input_size) / float(im_size_min)
+        # if round(im_scale*im_size_max) > self.max_size:  # limit the longer side to MAX_SIZE
+        #     im_scale = float(self.max_size) / float(im_size_max)
+        # w = int(img.width*im_scale)
+        # h = int(img.height*im_scale)
+        w = h = float(self.input_size)
+        ws = w / img.width
+        hs = h / img.height
+        im_scale = torch.Tensor([ws,hs,ws,hs])
         return img.resize((w,h)), im_scale
 
     def random_flip(self, img, boxes):

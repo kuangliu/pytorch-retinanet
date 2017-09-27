@@ -115,18 +115,12 @@ class DataEncoder:
 
         loc_xy = loc_preds[:,:2]
         loc_wh = loc_preds[:,2:]
-        print(loc_xy.size())
-        print(anchor_boxes.size())
 
         xy = loc_xy * anchor_boxes[:,2:] + anchor_boxes[:,:2]
         wh = loc_wh.exp() * anchor_boxes[:,2:]
         boxes = torch.cat([xy-wh/2, xy+wh/2], 1)  # [#anchors,4]
-        # boxes[:,0].clamp_(min=0)
-        # boxes[:,1].clamp_(min=0)
-        # boxes[:,2].clamp_(max=input_size[1])
-        # boxes[:,3].clamp_(max=input_size[0])
 
-        score, labels = cls_preds.max(1)          # [#anchors,]
+        score, labels = cls_preds.sigmoid().max(1)          # [#anchors,]
         ids = score > CLS_THRESH
         ids = ids.nonzero().squeeze()             # [#obj,]
         keep = box_nms(boxes[ids], score[ids], threshold=NMS_THRESH)
