@@ -34,11 +34,11 @@ class DataEncoder:
         '''Compute anchor boxes for each feature map.
 
         Args:
-          input_size: (tensor) model input size of (input_height, input_width).
+          input_size: (tensor) model input size of (w,h).
 
         Returns:
           boxes: (list) anchor boxes for each feature map. Each of size [#anchors,4],
-                        where #anchors = fmh * fmw * #anchors_per_cell
+                        where #anchors = fmw * fmh * #anchors_per_cell
         '''
         num_fms = len(self.anchor_areas)
         fm_sizes = [(input_size/pow(2.,i+3)).ceil() for i in range(num_fms)]  # p3 -> p7 feature map sizes
@@ -46,12 +46,12 @@ class DataEncoder:
         boxes = []
         for i in range(num_fms):
             fm_size = fm_sizes[i]
-            grid_h, grid_w = input_size / fm_size
-            fm_h, fm_w = int(fm_size[0]), int(fm_size[1])
-            xy = meshgrid(fm_w,fm_h) + 0.5  # [fm_h*fm_w,2]
-            xy = (xy*torch.Tensor([grid_w,grid_h])).view(fm_h,fm_w,1,2).expand(fm_h,fm_w,9,2)
-            wh = self.anchor_wh[i].view(1,1,9,2).expand(fm_h,fm_w,9,2)
-            box = torch.cat([xy,wh], 3)  # [x,y,w,h]
+            grid_size = input_size / fm_size
+            fm_w, fm_h = int(fm_size[0]), int(fm_size[1])
+            xy = meshgrid(fm_w,fm_h) + 0.5  # [fm_w*fm_h,2]
+            xy = (xy*grid_size).view(fm_w*fm_h,1,2).expand(fm_w*fm_h,9,2)
+            wh = self.anchor_wh[i].view(1,9,2).expand(fm_w*fm_h,9,2)
+            box = torch.cat([xy,wh], 2)  # [x,y,w,h]
             boxes.append(box.view(-1,4))
         return torch.cat(boxes, 0)
 
@@ -100,7 +100,7 @@ class DataEncoder:
         Args:
           loc_preds: (tensor) predicted locations, sized [#anchors, 4].
           cls_preds: (tensor) predicted class labels, sized [#anchors, #classes].
-          input_size: (int/tuple) model input size of (input_height, input_width).
+          input_size: (int/tuple) model input size of (w,h).
 
         Returns:
           boxes: (tensor) decode box locations, sized [#obj,4].

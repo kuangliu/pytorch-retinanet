@@ -109,9 +109,9 @@ class ListDataset(data.Dataset):
         #     im_scale = float(self.max_size) / float(im_size_max)
         # w = int(img.width*im_scale)
         # h = int(img.height*im_scale)
-        w = h = float(self.input_size)
-        ws = w / img.width
-        hs = h / img.height
+        w = h = self.input_size
+        ws = 1.0 * w / img.width
+        hs = 1.0 * h / img.height
         im_scale = torch.Tensor([ws,hs,ws,hs])
         return img.resize((w,h)), im_scale
 
@@ -190,7 +190,7 @@ class ListDataset(data.Dataset):
             inputs[i,:,:imh,:imw] = im
 
             # Encode data.
-            loc_target, cls_target = self.data_encoder.encode(boxes[i], labels[i], input_size=(max_h,max_w), train=self.train)
+            loc_target, cls_target = self.data_encoder.encode(boxes[i], labels[i], input_size=(max_w,max_h), train=self.train)
             loc_targets.append(loc_target)
             cls_targets.append(cls_target)
         return inputs, torch.stack(loc_targets), torch.stack(cls_targets)
