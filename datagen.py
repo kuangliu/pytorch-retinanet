@@ -73,7 +73,7 @@ class ListDataset(data.Dataset):
           loc_targets: (tensor) location targets.
           cls_targets: (tensor) class label targets.
         '''
-        # Load image and bbox locations.
+        # Load image and boxes.
         fname = self.fnames[idx]
         img = Image.open(os.path.join(self.root, fname))
         boxes = self.boxes[idx]
@@ -84,50 +84,50 @@ class ListDataset(data.Dataset):
             img, boxes = self.random_flip(img, boxes)
             img, boxes = self.scale_jitter(img, boxes)
 
-        img, im_scale = self.resize(img)
-        boxes *= im_scale
+        img, boxes = self.resize(img, boxes)
         img = self.transform(img)
         return img, boxes, labels
 
-    def resize(self, img):
+    def resize(self, img, boxes):
         '''Resize the image shorter side to input_size.
 
         Args:
           img: (PIL.Image) image.
+          boxes: (tensor) object boxes, sized [#obj, 4].
 
         Returns:
           (PIL.Image) resized image.
-          (float) image scale.
+          (tensor) resized object boxes.
 
         Reference:
           https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/utils/blob.py
         '''
         # im_size_min = min(img.size)
         # im_size_max = max(img.size)
-        # im_scale = float(self.input_size) / float(im_size_min)
-        # if round(im_scale*im_size_max) > self.max_size:  # limit the longer side to MAX_SIZE
-        #     im_scale = float(self.max_size) / float(im_size_max)
-        # w = int(img.width*im_scale)
-        # h = int(img.height*im_scale)
+        # scale = float(self.input_size) / float(im_size_min)
+        # if round(scale*im_size_max) > self.max_size:  # limit the longer side to MAX_SIZE
+        #     scale = float(self.max_size) / float(im_size_max)
+        # w = int(img.width*scale)
+        # h = int(img.height*scale)
         w = h = self.input_size
         ws = 1.0 * w / img.width
         hs = 1.0 * h / img.height
-        im_scale = torch.Tensor([ws,hs,ws,hs])
-        return img.resize((w,h)), im_scale
+        scale = torch.Tensor([ws,hs,ws,hs])
+        return img.resize((w,h)), scale*boxes
 
     def random_flip(self, img, boxes):
-        '''Randomly flip the image and adjust the bbox locations.
+        '''Randomly flip the image and adjust the boxes.
 
-        For bbox (xmin, ymin, xmax, ymax), the flipped bbox is:
+        For box (xmin, ymin, xmax, ymax), the flipped box is:
         (w-xmax, ymin, w-xmin, ymax).
 
         Args:
           img: (PIL.Image) image.
-          boxes: (tensor) bbox locations, sized [#obj, 4].
+          boxes: (tensor) object boxes, sized [#obj, 4].
 
         Returns:
           img: (PIL.Image) randomly flipped image.
-          boxes: (tensor) randomly flipped bbox locations, sized [#obj, 4].
+          boxes: (tensor) randomly flipped boxes, sized [#obj, 4].
         '''
         if random.random() < 0.5:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
@@ -143,11 +143,11 @@ class ListDataset(data.Dataset):
 
         Args:
           img: (PIL.Image) image.
-          boxes: (tensor) bbox locations, sized [#obj, 4].
+          boxes: (tensor) object boxes, sized [#obj, 4].
 
         Returns:
           img: (PIL.Image) scaled image.
-          boxes: (tensor) scaled bbox locations, sized [#obj, 4].
+          boxes: (tensor) scaled object boxes, sized [#obj, 4].
         '''
         imw, imh = img.size
         sw = random.uniform(3/4., 4/3.)
@@ -168,13 +168,13 @@ class ListDataset(data.Dataset):
           batch: (list) of images, cls_targets, loc_targets.
 
         Returns:
-          (list) of padded images, stacked cls_targets, stacked loc_targets.
+          padded images, stacked cls_targets, stacked loc_targets.
 
         Reference:
           https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/utils/blob.py
         '''
         imgs = [x[0] for x in batch]
-        boxes  = [x[1] for x in batch]
+        boxes = [x[1] for x in batch]
         labels = [x[2] for x in batch]
 
         max_h = max([im.size(1) for im in imgs])
