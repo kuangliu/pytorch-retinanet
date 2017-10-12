@@ -7,6 +7,7 @@ from retinanet import RetinaNet
 from encoder import DataEncoder
 from PIL import Image, ImageDraw
 
+
 print('Loading model..')
 net = RetinaNet()
 net.load_state_dict(torch.load('./checkpoint/params.pth'))
