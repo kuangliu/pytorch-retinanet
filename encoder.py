@@ -51,11 +51,11 @@ class DataEncoder:
             xy = meshgrid(fm_w,fm_h) + 0.5  # [fm_h*fm_w, 2]
             xy = (xy*grid_size).view(fm_h,fm_w,1,2).expand(fm_h,fm_w,9,2)
             wh = self.anchor_wh[i].view(1,1,9,2).expand(fm_h,fm_w,9,2)
-            box = torch.cat([xy,wh], 2)  # [x,y,w,h]
+            box = torch.cat([xy,wh], 3)  # [x,y,w,h]
             boxes.append(box.view(-1,4))
         return torch.cat(boxes, 0)
 
-    def encode(self, boxes, labels, input_size, train):
+    def encode(self, boxes, labels, input_size):
         '''Encode target bounding boxes and class labels.
 
         We obey the Faster RCNN box coder:
@@ -67,8 +67,7 @@ class DataEncoder:
         Args:
           boxes: (tensor) bounding boxes of (xmin,ymin,xmax,ymax), sized [#obj, 4].
           labels: (tensor) object class labels, sized [#obj,].
-          input_size: (int/tuple) model input size of (input_height, input_width).
-          train: (bool) train or eval mode.
+          input_size: (int/tuple) model input size of (w,h).
 
         Returns:
           loc_targets: (tensor) encoded bounding boxes, sized [#anchors,4].
@@ -89,9 +88,8 @@ class DataEncoder:
         cls_targets = 1 + labels[max_ids]
 
         cls_targets[max_ious<0.5] = 0
-        if train:
-            ignore = (max_ious>0.4) & (max_ious<0.5)  # ignore ious between [0.4,0.5]
-            cls_targets[ignore] = -1  # for now just mark ignored to -1
+        ignore = (max_ious>0.4) & (max_ious<0.5)  # ignore ious between [0.4,0.5]
+        cls_targets[ignore] = -1  # for now just mark ignored to -1
         return loc_targets, cls_targets
 
     def decode(self, loc_preds, cls_preds, input_size):

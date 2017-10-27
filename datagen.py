@@ -16,24 +16,23 @@ import torchvision.transforms as transforms
 
 from PIL import Image
 from encoder import DataEncoder
+from transform import resize, random_flip, random_crop, center_crop
 
 
 class ListDataset(data.Dataset):
-    def __init__(self, root, list_file, train, transform, input_size, max_size):
+    def __init__(self, root, list_file, train, transform, input_size):
         '''
         Args:
           root: (str) ditectory to images.
           list_file: (str) path to index file.
           train: (boolean) train or test.
           transform: ([transforms]) image transforms.
-          input_size: (int) image shorter side size.
-          max_size: (int) maximum image longer side size.
+          input_size: (int) model input size.
         '''
         self.root = root
         self.train = train
         self.transform = transform
         self.input_size = input_size
-        self.max_size = max_size
 
         self.fnames = []
         self.boxes = []
@@ -78,86 +77,19 @@ class ListDataset(data.Dataset):
         img = Image.open(os.path.join(self.root, fname))
         boxes = self.boxes[idx]
         labels = self.labels[idx]
+        size = self.input_size
 
-        # Data augmentation while training.
+        # Data augmentation.
         if self.train:
-            img, boxes = self.random_flip(img, boxes)
-            img, boxes = self.scale_jitter(img, boxes)
+            img, boxes = random_flip(img, boxes)
+            img, boxes = random_crop(img, boxes)
+            img, boxes = resize(img, boxes, (size,size))
+        else:
+            img, boxes = resize(img, boxes, size)
+            img, boxes = center_crop(img, boxes, (size,size))
 
-        img, boxes = self.resize(img, boxes)
         img = self.transform(img)
         return img, boxes, labels
-
-    def resize(self, img, boxes):
-        '''Resize the image shorter side to input_size.
-
-        Args:
-          img: (PIL.Image) image.
-          boxes: (tensor) object boxes, sized [#obj, 4].
-
-        Returns:
-          (PIL.Image) resized image.
-          (tensor) resized object boxes.
-
-        Reference:
-          https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/utils/blob.py
-        '''
-        # im_size_min = min(img.size)
-        # im_size_max = max(img.size)
-        # scale = float(self.input_size) / float(im_size_min)
-        # if round(scale*im_size_max) > self.max_size:  # limit the longer side to MAX_SIZE
-        #     scale = float(self.max_size) / float(im_size_max)
-        # w = int(img.width*scale)
-        # h = int(img.height*scale)
-        w = h = self.input_size
-        ws = 1.0 * w / img.width
-        hs = 1.0 * h / img.height
-        scale = torch.Tensor([ws,hs,ws,hs])
-        return img.resize((w,h)), scale*boxes
-
-    def random_flip(self, img, boxes):
-        '''Randomly flip the image and adjust the boxes.
-
-        For box (xmin, ymin, xmax, ymax), the flipped box is:
-        (w-xmax, ymin, w-xmin, ymax).
-
-        Args:
-          img: (PIL.Image) image.
-          boxes: (tensor) object boxes, sized [#obj, 4].
-
-        Returns:
-          img: (PIL.Image) randomly flipped image.
-          boxes: (tensor) randomly flipped boxes, sized [#obj, 4].
-        '''
-        if random.random() < 0.5:
-            img = img.transpose(Image.FLIP_LEFT_RIGHT)
-            w = img.width
-            xmin = w - boxes[:,2]
-            xmax = w - boxes[:,0]
-            boxes[:,0] = xmin
-            boxes[:,2] = xmax
-        return img, boxes
-
-    def scale_jitter(self, img, boxes):
-        '''Scale image size randomly to [3/4,4/3].
-
-        Args:
-          img: (PIL.Image) image.
-          boxes: (tensor) object boxes, sized [#obj, 4].
-
-        Returns:
-          img: (PIL.Image) scaled image.
-          boxes: (tensor) scaled object boxes, sized [#obj, 4].
-        '''
-        imw, imh = img.size
-        sw = random.uniform(3/4., 4/3.)
-        sh = random.uniform(3/4., 4/3.)
-        w = int(imw*sw)
-        h = int(imh*sh)
-        img = img.resize((w,h))
-        boxes[:,::2] *= sw
-        boxes[:,1::2] *= sh
-        return img, boxes
 
     def collate_fn(self, batch):
         '''Pad images and encode targets.
@@ -169,28 +101,21 @@ class ListDataset(data.Dataset):
 
         Returns:
           padded images, stacked cls_targets, stacked loc_targets.
-
-        Reference:
-          https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/utils/blob.py
         '''
         imgs = [x[0] for x in batch]
         boxes = [x[1] for x in batch]
         labels = [x[2] for x in batch]
 
-        max_h = max([im.size(1) for im in imgs])
-        max_w = max([im.size(2) for im in imgs])
+
+        h = w = self.input_size
         num_imgs = len(imgs)
-        inputs = torch.zeros(num_imgs, 3, max_h, max_w)
+        inputs = torch.zeros(num_imgs, 3, h, w)
 
         loc_targets = []
         cls_targets = []
         for i in range(num_imgs):
-            im = imgs[i]
-            imh, imw = im.size(1), im.size(2)
-            inputs[i,:,:imh,:imw] = im
-
-            # Encode data.
-            loc_target, cls_target = self.data_encoder.encode(boxes[i], labels[i], input_size=(max_w,max_h), train=self.train)
+            inputs[i] = imgs[i]
+            loc_target, cls_target = self.data_encoder.encode(boxes[i], labels[i], input_size=(w,h))
             loc_targets.append(loc_target)
             cls_targets.append(cls_target)
         return inputs, torch.stack(loc_targets), torch.stack(cls_targets)
@@ -207,15 +132,15 @@ def test():
         transforms.Normalize((0.485,0.456,0.406), (0.229,0.224,0.225))
     ])
     dataset = ListDataset(root='/mnt/hgfs/D/download/PASCAL_VOC/voc_all_images',
-                          list_file='./voc_data/test.txt', train=False, transform=transform, input_size=600, max_size=1000)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=1, collate_fn=dataset.collate_fn)
+                          list_file='./voc_data/voc12_train.txt', train=True, transform=transform, input_size=600)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=8, shuffle=False, num_workers=1, collate_fn=dataset.collate_fn)
 
     for images, loc_targets, cls_targets in dataloader:
         print(images.size())
         print(loc_targets.size())
         print(cls_targets.size())
         grid = torchvision.utils.make_grid(images, 1)
-        torchvision.utils.save_image(grid,'a.jpg')
+        torchvision.utils.save_image(grid, 'a.jpg')
         break
 
 # test()

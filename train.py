@@ -20,7 +20,7 @@ from torch.autograd import Variable
 
 
 parser = argparse.ArgumentParser(description='PyTorch RetinaNet Training')
-parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+parser.add_argument('--lr', default=1e-3, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 args = parser.parse_args()
 
@@ -36,11 +36,11 @@ transform = transforms.Compose([
 ])
 
 trainset = ListDataset(root='/search/odin/liukuang/data/voc_all_images',
-                       list_file='./voc_data/test.txt', train=True, transform=transform, input_size=600, max_size=1000)
+                       list_file='./voc_data/test.txt', train=True, transform=transform, input_size=600)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
 
 testset = ListDataset(root='/search/odin/liukuang/data/voc_all_images',
-                      list_file='./voc_data/test.txt', train=False, transform=transform, input_size=600, max_size=1000)
+                      list_file='./voc_data/test.txt', train=False, transform=transform, input_size=600)
 testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
 
 # Model
