@@ -106,7 +106,6 @@ class ListDataset(data.Dataset):
         boxes = [x[1] for x in batch]
         labels = [x[2] for x in batch]
 
-
         h = w = self.input_size
         num_imgs = len(imgs)
         inputs = torch.zeros(num_imgs, 3, h, w)

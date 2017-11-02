@@ -109,7 +109,7 @@ def change_box_order(boxes, order):
     a = boxes[:,:2]
     b = boxes[:,2:]
     if order == 'xyxy2xywh':
-        return torch.cat([(a+b)/2,b-a], 1)
+        return torch.cat([(a+b)/2,b-a+1], 1)
     return torch.cat([a-b/2,a+b/2], 1)
 
 def box_iou(box1, box2, order='xyxy'):
@@ -166,7 +166,7 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
     x2 = bboxes[:,2]
     y2 = bboxes[:,3]
 
-    areas = (x2-x1) * (y2-y1)
+    areas = (x2-x1+1) * (y2-y1+1)
     _, order = scores.sort(0, descending=True)
 
     keep = []
@@ -182,8 +182,8 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
         xx2 = x2[order[1:]].clamp(max=x2[i])
         yy2 = y2[order[1:]].clamp(max=y2[i])
 
-        w = (xx2-xx1).clamp(min=0)
-        h = (yy2-yy1).clamp(min=0)
+        w = (xx2-xx1+1).clamp(min=0)
+        h = (yy2-yy1+1).clamp(min=0)
         inter = w*h
 
         if mode == 'union':
