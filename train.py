@@ -63,7 +63,7 @@ optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=1
 def train(epoch):
     print('\nEpoch: %d' % epoch)
     net.train()
-    net.freeze_bn()
+    net.module.freeze_bn()
     train_loss = 0
     for batch_idx, (inputs, loc_targets, cls_targets) in enumerate(trainloader):
         inputs = Variable(inputs.cuda())

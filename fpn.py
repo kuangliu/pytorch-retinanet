@@ -67,29 +67,6 @@ class FPN(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def _add(self, x, y):
-        '''Add two feature maps.
-
-        Args:
-          x: (Variable) upsampled feature map.
-          y: (Variable) lateral feature map.
-
-        Returns:
-          (Variable) added feature map.
-
-        Upsampled feature map size is always >= lateral feature map size.
-        The reason why the two feature map sizes may not equal is because when the
-        input size is odd, the upsampled feature map size is always 1 pixel
-        bigger than the original input size.
-
-        e.g.
-        original input size: [N,_,15,15] ->
-        conv2d feature map size: [N,_,8,8] ->
-        upsampled feature map size: [N,_,16,16]
-        '''
-        _,_,H,W = y.size()
-        return x[:,:,:H,:W] + y
-
     def _upsample_add(self, x, y):
         '''Upsample and add two feature maps.
 
