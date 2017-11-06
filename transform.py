@@ -8,16 +8,17 @@ import torchvision.transforms as transforms
 from PIL import Image, ImageDraw
 
 
-def resize(img, boxes, size):
+def resize(img, boxes, size, max_size=1000):
     '''Resize the input PIL image to the given size.
 
     Args:
-      img (PIL.Image): image to be resized.
+      img: (PIL.Image) image to be resized.
       boxes: (tensor) object boxes, sized [#ojb,4].
       size: (tuple or int)
         - if is tuple, resize image to the size.
         - if is int, resize the shorter side to the size while maintaining the aspect ratio.
-
+      max_size: (int) when size is int, limit the image longer size to max_size.
+                This is essential to limit the usage of GPU memory.
     Returns:
       img: (PIL.Image) resized image.
       boxes: (tensor) resized boxes.
@@ -27,6 +28,8 @@ def resize(img, boxes, size):
         size_min = min(w,h)
         size_max = max(w,h)
         sw = sh = float(size) / size_min
+        if sw * size_max > max_size:
+            sw = sh = float(max_size) / size_max
         ow = int(w * sw + 0.5)
         oh = int(h * sh + 0.5)
     else:
@@ -43,7 +46,7 @@ def random_crop(img, boxes):
     aspect ratio of 3/4 to 4/3 of the original aspect ratio is made.
 
     Args:
-      img (PIL.Image): image to be cropped.
+      img: (PIL.Image) image to be cropped.
       boxes: (tensor) object boxes, sized [#ojb,4].
 
     Returns:
@@ -84,7 +87,7 @@ def center_crop(img, boxes, size):
     '''Crops the given PIL Image at the center.
 
     Args:
-      img (PIL.Image): image to be cropped.
+      img: (PIL.Image) image to be cropped.
       boxes: (tensor) object boxes, sized [#ojb,4].
       size (tuple): desired output size of (w,h).
 
@@ -106,7 +109,7 @@ def random_flip(img, boxes):
     '''Randomly flip the given PIL Image.
 
     Args:
-        img (PIL Image): Image to be flipped.
+        img: (PIL Image) image to be flipped.
         boxes: (tensor) object boxes, sized [#ojb,4].
 
     Returns:
