@@ -40,7 +40,7 @@ class RetinaNet(nn.Module):
         '''Freeze BatchNorm layers.'''
         for layer in self.modules():
             if isinstance(layer, nn.BatchNorm2d):
-                layer.training = False
+                layer.eval()
 
 def test():
     net = RetinaNet()
