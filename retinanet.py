@@ -7,11 +7,11 @@ from torch.autograd import Variable
 
 class RetinaNet(nn.Module):
     num_anchors = 9
-    num_classes = 20
-
-    def __init__(self):
+    
+    def __init__(self, num_classes=20):
         super(RetinaNet, self).__init__()
         self.fpn = FPN50()
+        self.num_classes = num_classes
         self.loc_head = self._make_head(self.num_anchors*4)
         self.cls_head = self._make_head(self.num_anchors*self.num_classes)
 

@@ -36,11 +36,11 @@ transform = transforms.Compose([
 ])
 
 trainset = ListDataset(root='/search/odin/liukuang/data/voc_all_images',
-                       list_file='./voc_data/test.txt', train=True, transform=transform, input_size=600)
+                       list_file='./data/voc12_train.txt', train=True, transform=transform, input_size=600)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
 
 testset = ListDataset(root='/search/odin/liukuang/data/voc_all_images',
-                      list_file='./voc_data/test.txt', train=False, transform=transform, input_size=600)
+                      list_file='./data/voc12_val.txt', train=False, transform=transform, input_size=600)
 testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
 
 # Model

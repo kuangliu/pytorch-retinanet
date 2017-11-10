@@ -9,10 +9,9 @@ from torch.autograd import Variable
 
 
 class FocalLoss(nn.Module):
-    num_classes = 20
-
-    def __init__(self):
+    def __init__(self, num_classes=20):
         super(FocalLoss, self).__init__()
+        self.num_classes = num_classes
 
     def focal_loss(self, x, y):
         '''Focal loss.

@@ -2,7 +2,7 @@
 
 The list file is like:
 
-    img.jpg width height xmin ymin xmax ymax label xmin ymin xmax ymax label ...
+    img.jpg xmin ymin xmax ymax label xmin ymin xmax ymax label ...
 '''
 from __future__ import print_function
 
@@ -47,15 +47,15 @@ class ListDataset(data.Dataset):
         for line in lines:
             splited = line.strip().split()
             self.fnames.append(splited[0])
-            num_boxes = (len(splited) - 3) // 5
+            num_boxes = (len(splited) - 1) // 5
             box = []
             label = []
             for i in range(num_boxes):
-                xmin = splited[3+5*i]
-                ymin = splited[4+5*i]
-                xmax = splited[5+5*i]
-                ymax = splited[6+5*i]
-                c = splited[7+5*i]
+                xmin = splited[1+5*i]
+                ymin = splited[2+5*i]
+                xmax = splited[3+5*i]
+                ymax = splited[4+5*i]
+                c = splited[5+5*i]
                 box.append([float(xmin),float(ymin),float(xmax),float(ymax)])
                 label.append(int(c))
             self.boxes.append(torch.Tensor(box))
@@ -75,6 +75,9 @@ class ListDataset(data.Dataset):
         # Load image and boxes.
         fname = self.fnames[idx]
         img = Image.open(os.path.join(self.root, fname))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+            
         boxes = self.boxes[idx]
         labels = self.labels[idx]
         size = self.input_size
@@ -131,7 +134,7 @@ def test():
         transforms.Normalize((0.485,0.456,0.406), (0.229,0.224,0.225))
     ])
     dataset = ListDataset(root='/mnt/hgfs/D/download/PASCAL_VOC/voc_all_images',
-                          list_file='./voc_data/voc12_train.txt', train=True, transform=transform, input_size=600)
+                          list_file='./data/voc12_train.txt', train=True, transform=transform, input_size=600)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=8, shuffle=False, num_workers=1, collate_fn=dataset.collate_fn)
 
     for images, loc_targets, cls_targets in dataloader:
