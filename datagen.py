@@ -77,8 +77,8 @@ class ListDataset(data.Dataset):
         img = Image.open(os.path.join(self.root, fname))
         if img.mode != 'RGB':
             img = img.convert('RGB')
-            
-        boxes = self.boxes[idx]
+
+        boxes = self.boxes[idx].clone()
         labels = self.labels[idx]
         size = self.input_size
 
