@@ -223,11 +223,8 @@ def one_hot_embedding(labels, num_classes):
     Returns:
       (tensor) encoded labels, sized [N,#classes].
     '''
-    N = labels.size(0)
-    D = num_classes
-    y = torch.zeros(N,D)
-    y[torch.arange(0,N).long(),labels] = 1
-    return y
+    y = torch.eye(num_classes)  # [D,D]
+    return y[labels]            # [N,D]
 
 def msr_init(net):
     '''Initialize layer parameters.'''
