@@ -112,7 +112,7 @@ def change_box_order(boxes, order):
         return torch.cat([(a+b)/2,b-a+1], 1)
     return torch.cat([a-b/2,a+b/2], 1)
 
-def box_iou(box1, box2, order='xyxy'):
+def box_iou(box1_, box2_, order='xyxy'):
     '''Compute the intersection over union of two set of boxes.
 
     The default box order is (xmin, ymin, xmax, ymax).
@@ -128,9 +128,13 @@ def box_iou(box1, box2, order='xyxy'):
     Reference:
       https://github.com/chainer/chainercv/blob/master/chainercv/utils/bbox/bbox_iou.py
     '''
+    #this part code change the values of box1 and box2,I thought that this can modify like this
     if order == 'xywh':
-        box1 = change_box_order(box1, 'xywh2xyxy')
-        box2 = change_box_order(box2, 'xywh2xyxy')
+        box1 = change_box_order(box1_, 'xywh2xyxy')
+        box2 = change_box_order(box2_, 'xywh2xyxy')
+    else:
+        box1,box2=box1_,box2_
+    #this part code change the values of box1 and box2,I thought that this can modify like this
 
     N = box1.size(0)
     M = box2.size(0)
